@@ -1,7 +1,8 @@
 """ClassicMacMCP hosted/read-only core.
 
 Execution providers are intentionally not exposed by this server yet. The first
-public surface is compatibility validation and curated knowledge retrieval.
+public surface is compatibility validation, curated knowledge retrieval, and
+explicitly-labelled raw project-history evidence search.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from mcp.server.mcpserver import MCPServer
 
 from . import __version__
 from .compatibility import scan_c89, validation_ladder
-from .knowledge import get_record, search
+from .knowledge import get_record, search, search_git_history
 from .models import ProjectManifest
 
 mcp = MCPServer(
@@ -30,6 +31,11 @@ mcp = MCPServer(
 
 def _kb_root() -> Path:
     value = os.environ.get("CLASSICMAC_KB_ROOT", "../classicmac-kb")
+    return Path(value).expanduser().resolve()
+
+
+def _kb_database() -> Path:
+    value = os.environ.get("CLASSICMAC_KB_DB", "../classicmac-kb/build/classicmac.sqlite")
     return Path(value).expanduser().resolve()
 
 
@@ -50,6 +56,7 @@ def classicmac_about() -> dict[str, object]:
         "mode": "hosted-read-only-core",
         "hardware_control": False,
         "knowledge_root": str(_kb_root()),
+        "knowledge_database": str(_kb_database()),
         "validation_levels": validation_ladder(),
     }
 
@@ -96,7 +103,8 @@ def classicmac_search_knowledge(
 ) -> list[dict[str, object]]:
     """Search curated Classic Mac knowledge, optionally filtered by project applicability.
 
-    Generic internet/modern C knowledge is not searched by this tool.
+    Generic internet/modern C knowledge and raw unreviewed commit history are not
+    searched by this tool.
     """
 
     if len(query) > 500:
@@ -107,7 +115,7 @@ def classicmac_search_knowledge(
 
 @mcp.tool()
 def classicmac_get_knowledge(record_id: str) -> dict[str, object]:
-    """Return one canonical knowledge record with provenance and applicability."""
+    """Return one canonical knowledge record with expanded provenance."""
 
     if len(record_id) > 200:
         raise ValueError("record id too long")
@@ -115,6 +123,31 @@ def classicmac_get_knowledge(record_id: str) -> dict[str, object]:
     if item is None:
         raise ValueError(f"unknown knowledge record: {record_id}")
     return item
+
+
+@mcp.tool()
+def classicmac_search_history(
+    query: str,
+    repository: str = "",
+    limit: int = 20,
+) -> list[dict[str, object]]:
+    """Search indexed project Git history for prior work or regressions.
+
+    Results are explicitly raw evidence candidates, not canonical compatibility
+    facts. Use `classicmac_search_knowledge` for trusted target-programming
+    guidance.
+    """
+
+    if len(query) > 500:
+        raise ValueError("query exceeds 500 character limit")
+    if len(repository) > 200:
+        raise ValueError("repository filter too long")
+    return search_git_history(
+        _kb_database(),
+        query,
+        repository=repository,
+        limit=limit,
+    )
 
 
 def main() -> None:
