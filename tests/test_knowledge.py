@@ -1,7 +1,7 @@
 import sqlite3
 from pathlib import Path
 
-from classicmac_mcp.knowledge import get_record, search, search_git_history
+from classicmac_mcp.knowledge import get_record, search, search_documents, search_git_history
 from classicmac_mcp.models import ProjectManifest
 
 
@@ -131,3 +131,28 @@ def test_raw_git_history_is_explicitly_noncanonical(tmp_path: Path):
     assert results[0]["sha"] == "abc123"
     assert results[0]["canonical_knowledge"] is False
     assert results[0]["evidence_class"] == "raw_git_history"
+
+
+def test_raw_repository_document_is_explicitly_noncanonical(tmp_path: Path):
+    database = tmp_path / "kb.sqlite"
+    db = sqlite3.connect(database)
+    db.execute(
+        "CREATE VIRTUAL TABLE document_fts USING fts5(repository UNINDEXED, path, title, content)"
+    )
+    db.execute(
+        "INSERT INTO document_fts(repository, path, title, content) VALUES (?, ?, ?, ?)",
+        (
+            "mplsllc/workflow",
+            "playbook/06-build-diagnostics.md",
+            "Build Diagnostics: Text First",
+            "CodeWarrior exposes compiler and linker output programmatically.",
+        ),
+    )
+    db.commit()
+    db.close()
+
+    results = search_documents(database, "compiler", repository="mplsllc/workflow")
+    assert len(results) == 1
+    assert results[0]["path"] == "playbook/06-build-diagnostics.md"
+    assert results[0]["canonical_knowledge"] is False
+    assert results[0]["evidence_class"] == "raw_repository_document"
