@@ -89,41 +89,59 @@ class MachineManifest(BaseModel):
     labels: dict[str, str] = Field(default_factory=dict)
 
 
-class SourceReference(BaseModel):
+class KnowledgeApplicability(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    kind: str
-    locator: str
-    note: str | None = None
-
-
-class AppliesTo(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
+    toolchain_family: str | None = None
+    toolchain_versions: list[str] = Field(default_factory=list)
+    language: str | None = None
+    language_standard: str | None = None
     architectures: list[str] = Field(default_factory=list)
-    os_families: list[str] = Field(default_factory=list)
+    os_family: str | None = None
     os_versions: list[str] = Field(default_factory=list)
-    toolchains: list[str] = Field(default_factory=list)
-    language_standards: list[str] = Field(default_factory=list)
     projects: list[str] = Field(default_factory=list)
     machines: list[str] = Field(default_factory=list)
+    notes: str | None = None
+
+
+class EvidenceReference(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source_id: str
+    role: str
+    note: str | None = None
 
 
 class KnowledgeRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     schema_version: int = Field(default=1, ge=1)
-    id: str = Field(min_length=1, pattern=r"^[a-z0-9][a-z0-9._-]*$")
+    id: str = Field(min_length=1, pattern=r"^[a-z0-9][a-z0-9._-]+$")
     title: str = Field(min_length=1)
-    kind: str
+    scope: str
     state: EpistemicState
-    summary: str
-    applies_to: AppliesTo = Field(default_factory=AppliesTo)
-    validation_levels: list[ValidationLevel] = Field(default_factory=list)
+    validation_level: ValidationLevel
+    statement: str = Field(min_length=1)
+    applicability: KnowledgeApplicability = Field(default_factory=KnowledgeApplicability)
+    evidence: list[EvidenceReference] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
-    sources: list[SourceReference] = Field(default_factory=list)
+    related: list[str] = Field(default_factory=list)
     supersedes: list[str] = Field(default_factory=list)
-    superseded_by: str | None = None
+    last_reviewed: str | None = None
+
+
+class SourceRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: int = Field(default=1, ge=1)
+    id: str
+    kind: str
+    title: str
+    locator: dict[str, object]
+    redistribution: str
+    trust: str
+    notes: str | None = None
+    collected_at: str | None = None
 
 
 class CompatibilityFinding(BaseModel):
