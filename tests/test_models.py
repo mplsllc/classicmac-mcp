@@ -14,7 +14,7 @@ def test_project_manifest_accepts_codewarrior_c89_target():
                 "os": {"family": "classic-mac-os", "minimum": "8.6", "maximum": "9.2.2"},
             },
             "language": {"language": "c", "standard": "c89"},
-            "toolchain": {"family": "codewarrior", "version": "pro-8.3"},
+            "toolchain": {"family": "codewarrior", "version": "8.3"},
             "project_file": "Example.mcp",
         }
     )
@@ -32,7 +32,7 @@ def test_project_manifest_rejects_unknown_keys():
                     "architecture": "powerpc",
                     "os": {"family": "classic-mac-os"},
                 },
-                "toolchain": {"family": "codewarrior", "version": "pro-8.3"},
+                "toolchain": {"family": "codewarrior", "version": "8.3"},
                 "password": "must-not-live-here",
             }
         )
