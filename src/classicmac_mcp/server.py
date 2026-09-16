@@ -2,7 +2,7 @@
 
 Execution providers are intentionally not exposed by this server yet. The first
 public surface is compatibility validation, curated knowledge retrieval, and
-explicitly-labelled raw project-history evidence search.
+explicitly-labelled raw project-history/document evidence search.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from mcp.server.mcpserver import MCPServer
 
 from . import __version__
 from .compatibility import scan_c89, validation_ladder
-from .knowledge import get_record, search, search_git_history
+from .knowledge import get_record, search, search_documents, search_git_history
 from .models import ProjectManifest
 
 mcp = MCPServer(
@@ -103,8 +103,8 @@ def classicmac_search_knowledge(
 ) -> list[dict[str, object]]:
     """Search curated Classic Mac knowledge, optionally filtered by project applicability.
 
-    Generic internet/modern C knowledge and raw unreviewed commit history are not
-    searched by this tool.
+    Generic internet/modern C knowledge and raw unreviewed evidence are not searched
+    by this tool.
     """
 
     if len(query) > 500:
@@ -143,6 +143,31 @@ def classicmac_search_history(
     if len(repository) > 200:
         raise ValueError("repository filter too long")
     return search_git_history(
+        _kb_database(),
+        query,
+        repository=repository,
+        limit=limit,
+    )
+
+
+@mcp.tool()
+def classicmac_search_documents(
+    query: str,
+    repository: str = "",
+    limit: int = 20,
+) -> list[dict[str, object]]:
+    """Search opted-in current project/workflow documentation.
+
+    Results are navigation/evidence material and are deliberately marked
+    noncanonical. Stale or project-specific docs must not override curated
+    compatibility records.
+    """
+
+    if len(query) > 500:
+        raise ValueError("query exceeds 500 character limit")
+    if len(repository) > 200:
+        raise ValueError("repository filter too long")
+    return search_documents(
         _kb_database(),
         query,
         repository=repository,
