@@ -105,7 +105,7 @@ def validation_ladder() -> list[dict[str, object]]:
         },
         {
             "level": "codewarrior_verified",
-            "authority": "declared CodeWarrior installation",
+            "authority": "declared authoritative CodeWarrior installation",
             "proves": "the authoritative project compiler/linker accepted the build",
             "does_not_prove": "correct behavior on target hardware",
         },
