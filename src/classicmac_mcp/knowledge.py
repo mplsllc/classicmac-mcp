@@ -1,8 +1,8 @@
 """Canonical knowledge loading and deterministic retrieval.
 
 The Git repository is the source of truth. SQLite/FTS is derived data used for
-large raw-history search; curated knowledge can always be read directly from
-YAML without the generated database.
+large raw-history/document search; curated knowledge can always be read directly
+from YAML without the generated database.
 """
 
 from __future__ import annotations
@@ -252,6 +252,66 @@ def search_git_history(
                 "subject": row["subject"],
                 "body": row["body"],
                 "files": [value for value in row["files"].splitlines() if value],
+                "rank": row["rank"],
+            }
+            for row in rows
+        ]
+    finally:
+        db.close()
+
+
+def search_documents(
+    database: Path,
+    query: str,
+    *,
+    repository: str = "",
+    limit: int = 20,
+) -> list[dict[str, object]]:
+    """Search explicitly opted-in current repository documentation.
+
+    Results are raw navigation/evidence material, not canonical compatibility
+    knowledge. This distinction prevents stale project documentation from silently
+    overriding reviewed facts.
+    """
+
+    if limit < 1 or limit > 100:
+        raise ValueError("limit must be between 1 and 100")
+    if not database.exists():
+        raise ValueError(f"knowledge database does not exist: {database}")
+    if not query.strip():
+        return []
+
+    db = sqlite3.connect(f"file:{database}?mode=ro", uri=True)
+    db.row_factory = sqlite3.Row
+    try:
+        if repository:
+            rows = db.execute(
+                """SELECT repository, path, title,
+                          snippet(document_fts, 3, '[', ']', ' … ', 32) AS excerpt,
+                          bm25(document_fts, 0.0, 2.0, 6.0, 1.0) AS rank
+                   FROM document_fts
+                   WHERE document_fts MATCH ? AND repository = ?
+                   ORDER BY rank LIMIT ?""",
+                (query, repository, limit),
+            ).fetchall()
+        else:
+            rows = db.execute(
+                """SELECT repository, path, title,
+                          snippet(document_fts, 3, '[', ']', ' … ', 32) AS excerpt,
+                          bm25(document_fts, 0.0, 2.0, 6.0, 1.0) AS rank
+                   FROM document_fts
+                   WHERE document_fts MATCH ?
+                   ORDER BY rank LIMIT ?""",
+                (query, limit),
+            ).fetchall()
+        return [
+            {
+                "evidence_class": "raw_repository_document",
+                "canonical_knowledge": False,
+                "repository": row["repository"],
+                "path": row["path"],
+                "title": row["title"],
+                "excerpt": row["excerpt"],
                 "rank": row["rank"],
             }
             for row in rows
