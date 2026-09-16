@@ -60,12 +60,28 @@ For a CodeWarrior project:
 
 No earlier stage is promoted into evidence for a later stage.
 
+### CodeWarrior semantic API
+
+CodeWarrior is modeled as a programmable IDE with multiple control surfaces, not merely as a GUI or an AppleScript target. The MCP-facing service exposes stable semantic operations such as project identity, build, diagnostics, project membership, preferences, target selection, launch, and—where verified—debugger state.
+
+A capability resolver chooses the best evidenced implementation for each operation. Implementations may use:
+
+- the installed CodeWarrior AppleEvent/AppleScript Automation API;
+- the native Metrowerks CodeWarrior Plugin API where the exact-version SDK proves an appropriate capability;
+- deterministic GUI automation as a bounded fallback.
+
+Transport is independent of that choice: SSH/osascript, a native OS 9 bridge, an emulator bridge, or another private provider may carry the operation. Agents do not receive arbitrary AppleScript, raw Plugin API access, or GUI control as the normal public interface.
+
+Exact CodeWarrior behavior is version/fingerprint specific. An AppleEvent dictionary entry or historical Plugin API example is not considered verified behavior until controlled testing establishes it for the target IDE. See `CODEWARRIOR_API.md`.
+
 ### Provider / adapter
 
 Hardware and toolchains are modeled behind semantic interfaces. Expected providers include:
 
 - SSH + AppleScript/AppleEvents CodeWarrior workflow;
 - FTP + LaunchAPPL provider compatible with `matthewdeaves/classic-mac-hardware-mcp`;
+- AgentBridge/shared-folder or future network providers;
+- Classic Control/native OSA providers;
 - emulator providers;
 - future native target bridges.
 
