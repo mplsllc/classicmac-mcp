@@ -64,10 +64,66 @@ class ProjectManifest(BaseModel):
     name: str = Field(min_length=1)
     source_root: str = "."
     target: TargetSpec
-    language: LanguageSpec = LanguageSpec()
+    language: LanguageSpec = Field(default_factory=LanguageSpec)
     toolchain: ToolchainSpec
     project_file: str | None = None
     knowledge_paths: list[str] = Field(default_factory=list)
+
+
+class MachineManifest(BaseModel):
+    """Public/non-secret machine description.
+
+    Credentials and private network details deliberately live outside this model.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: int = Field(default=1, ge=1)
+    machine_id: str = Field(min_length=1, pattern=r"^[a-z0-9][a-z0-9._-]*$")
+    name: str = Field(min_length=1)
+    architecture: str
+    os_family: str = "classic-mac-os"
+    os_version: str
+    provider: str
+    capabilities: list[str] = Field(default_factory=list)
+    labels: dict[str, str] = Field(default_factory=dict)
+
+
+class SourceReference(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: str
+    locator: str
+    note: str | None = None
+
+
+class AppliesTo(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    architectures: list[str] = Field(default_factory=list)
+    os_families: list[str] = Field(default_factory=list)
+    os_versions: list[str] = Field(default_factory=list)
+    toolchains: list[str] = Field(default_factory=list)
+    language_standards: list[str] = Field(default_factory=list)
+    projects: list[str] = Field(default_factory=list)
+    machines: list[str] = Field(default_factory=list)
+
+
+class KnowledgeRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: int = Field(default=1, ge=1)
+    id: str = Field(min_length=1, pattern=r"^[a-z0-9][a-z0-9._-]*$")
+    title: str = Field(min_length=1)
+    kind: str
+    state: EpistemicState
+    summary: str
+    applies_to: AppliesTo = Field(default_factory=AppliesTo)
+    validation_levels: list[ValidationLevel] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+    sources: list[SourceReference] = Field(default_factory=list)
+    supersedes: list[str] = Field(default_factory=list)
+    superseded_by: str | None = None
 
 
 class CompatibilityFinding(BaseModel):
