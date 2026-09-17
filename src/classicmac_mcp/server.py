@@ -2,7 +2,7 @@
 
 Execution providers are intentionally not exposed by this server yet. The first
 public surface is compatibility validation, curated knowledge retrieval, and
-explicitly-labelled raw project-history/document evidence search.
+explicitly-labelled raw project-history/document/reference evidence search.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from . import __version__
 from .compatibility import scan_c89, validation_ladder
 from .knowledge import get_record, search, search_documents, search_git_history
 from .models import ProjectManifest
+from .references import search_references
 
 mcp = MCPServer(
     "ClassicMacMCP",
@@ -58,6 +59,11 @@ def classicmac_about() -> dict[str, object]:
         "knowledge_root": str(_kb_root()),
         "knowledge_database": str(_kb_database()),
         "validation_levels": validation_ladder(),
+        "retrieval_layers": [
+            "canonical_knowledge",
+            "project_evidence",
+            "vendor_historical_reference",
+        ],
     }
 
 
@@ -171,6 +177,35 @@ def classicmac_search_documents(
         _kb_database(),
         query,
         repository=repository,
+        limit=limit,
+    )
+
+
+@mcp.tool()
+def classicmac_search_references(
+    query: str,
+    corpus: str = "",
+    source_layer: str = "",
+    limit: int = 20,
+) -> list[dict[str, object]]:
+    """Search optional vendor manuals and historical references as follow-up material.
+
+    Results are always noncanonical and do not establish compatibility with the
+    active CodeWarrior/project environment. The reference index may be absent on
+    public deployments that do not have a private reference corpus configured.
+    """
+
+    if len(query) > 500:
+        raise ValueError("query exceeds 500 character limit")
+    if len(corpus) > 200:
+        raise ValueError("corpus filter too long")
+    if len(source_layer) > 100:
+        raise ValueError("source-layer filter too long")
+    return search_references(
+        _kb_database(),
+        query,
+        corpus=corpus,
+        source_layer=source_layer,
         limit=limit,
     )
 
