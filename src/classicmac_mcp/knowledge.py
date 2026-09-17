@@ -16,6 +16,7 @@ from typing import Iterable
 
 import yaml
 
+from .fts import literal_fts_query
 from .models import KnowledgeRecord, ProjectManifest, SourceRecord
 
 _TOKEN = re.compile(r"[A-Za-z0-9_+.-]+")
@@ -89,7 +90,10 @@ def applies_to_project(item: LoadedKnowledge, project: ProjectManifest) -> bool:
     """
 
     applies = item.record.applicability
-    if applies.toolchain_family and applies.toolchain_family.lower() != project.toolchain.family.lower():
+    if (
+        applies.toolchain_family
+        and applies.toolchain_family.lower() != project.toolchain.family.lower()
+    ):
         return False
     if applies.toolchain_versions and project.toolchain.version.lower() not in {
         value.lower() for value in applies.toolchain_versions
@@ -97,7 +101,10 @@ def applies_to_project(item: LoadedKnowledge, project: ProjectManifest) -> bool:
         return False
     if applies.language and applies.language.lower() != project.language.language.lower():
         return False
-    if applies.language_standard and applies.language_standard.lower() != project.language.standard.lower():
+    if (
+        applies.language_standard
+        and applies.language_standard.lower() != project.language.standard.lower()
+    ):
         return False
     if applies.architectures and project.target.architecture.lower() not in {
         value.lower() for value in applies.architectures
@@ -158,7 +165,9 @@ def search(
         title_tokens = _tokens(item.record.title)
         tag_tokens = _tokens(" ".join(item.record.tags))
         statement_tokens = _tokens(item.record.statement)
-        applicability_tokens = _tokens(json.dumps(item.record.applicability.model_dump(mode="json")))
+        applicability_tokens = _tokens(
+            json.dumps(item.record.applicability.model_dump(mode="json"))
+        )
 
         score = 0
         score += 8 * len(query_tokens & title_tokens)
@@ -219,7 +228,8 @@ def search_git_history(
         raise ValueError("limit must be between 1 and 100")
     if not database.exists():
         raise ValueError(f"knowledge database does not exist: {database}")
-    if not query.strip():
+    match_query = literal_fts_query(query)
+    if not match_query:
         return []
 
     db = sqlite3.connect(f"file:{database}?mode=ro", uri=True)
@@ -232,7 +242,7 @@ def search_git_history(
                    FROM git_fts
                    WHERE git_fts MATCH ? AND repository = ?
                    ORDER BY rank LIMIT ?""",
-                (query, repository, limit),
+                (match_query, repository, limit),
             ).fetchall()
         else:
             rows = db.execute(
@@ -241,7 +251,7 @@ def search_git_history(
                    FROM git_fts
                    WHERE git_fts MATCH ?
                    ORDER BY rank LIMIT ?""",
-                (query, limit),
+                (match_query, limit),
             ).fetchall()
         return [
             {
@@ -278,7 +288,8 @@ def search_documents(
         raise ValueError("limit must be between 1 and 100")
     if not database.exists():
         raise ValueError(f"knowledge database does not exist: {database}")
-    if not query.strip():
+    match_query = literal_fts_query(query)
+    if not match_query:
         return []
 
     db = sqlite3.connect(f"file:{database}?mode=ro", uri=True)
@@ -292,7 +303,7 @@ def search_documents(
                    FROM document_fts
                    WHERE document_fts MATCH ? AND repository = ?
                    ORDER BY rank LIMIT ?""",
-                (query, repository, limit),
+                (match_query, repository, limit),
             ).fetchall()
         else:
             rows = db.execute(
@@ -302,7 +313,7 @@ def search_documents(
                    FROM document_fts
                    WHERE document_fts MATCH ?
                    ORDER BY rank LIMIT ?""",
-                (query, limit),
+                (match_query, limit),
             ).fetchall()
         return [
             {
