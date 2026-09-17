@@ -62,14 +62,15 @@ def classicmac_about() -> dict[str, object]:
         "retrieval_layers": [
             "canonical_knowledge",
             "project_evidence",
-            "vendor_historical_reference",
+            "primary_vendor_documentation",
+            "historical_reference",
         ],
     }
 
 
 @mcp.tool()
 def classicmac_validate_project(manifest_yaml: str) -> dict[str, object]:
-    """Validate a portable `.classicmac/project.yaml` manifest."""
+    """Validate a portable `.classicmac/project.yaml` v1 manifest."""
 
     project = _parse_project(manifest_yaml)
     return {
@@ -77,7 +78,7 @@ def classicmac_validate_project(manifest_yaml: str) -> dict[str, object]:
         "project": project.model_dump(mode="json"),
         "toolchain_authority": (
             "The declared authoritative toolchain remains authoritative; "
-            "Retro68 is a preflight gate only."
+            "Retro68 success does not imply CodeWarrior verification."
         ),
     }
 
@@ -186,13 +187,14 @@ def classicmac_search_references(
     query: str,
     corpus: str = "",
     source_layer: str = "",
+    source_id: str = "",
     limit: int = 20,
 ) -> list[dict[str, object]]:
     """Search optional vendor manuals and historical references as follow-up material.
 
     Results are always noncanonical and do not establish compatibility with the
-    active CodeWarrior/project environment. The reference index may be absent on
-    public deployments that do not have a private reference corpus configured.
+    active CodeWarrior/project environment. Registered private sources can be
+    filtered by source ID so clients can distinguish exact manual/version context.
     """
 
     if len(query) > 500:
@@ -201,11 +203,14 @@ def classicmac_search_references(
         raise ValueError("corpus filter too long")
     if len(source_layer) > 100:
         raise ValueError("source-layer filter too long")
+    if len(source_id) > 200:
+        raise ValueError("source-id filter too long")
     return search_references(
         _kb_database(),
         query,
         corpus=corpus,
         source_layer=source_layer,
+        source_id=source_id,
         limit=limit,
     )
 
