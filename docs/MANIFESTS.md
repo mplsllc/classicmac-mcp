@@ -6,70 +6,61 @@ ClassicMacMCP uses explicit manifests so agents do not infer target constraints 
 
 A project may define `.classicmac/project.yaml`.
 
+The current v1 schema is deliberately compact and matches `ProjectManifest` in `src/classicmac_mcp/models.py`.
+
 Example:
 
 ```yaml
 schema_version: 1
-project:
-  id: macsurf
-  name: MacSurf
-source:
-  root: .
-  vcs: git
+project_id: macsurf
+name: MacSurf
+source_root: .
 target:
   architecture: powerpc
   os:
     family: classic-mac-os
-    min: "8.6"
-    max: "9.2.2"
+    minimum: "8.6"
+    maximum: "9.2.2"
+language:
+  language: c
+  standard: c89
 toolchain:
-  authoritative:
-    family: codewarrior
-    version: "8.3"
-  language:
-    c_standard: c89
-validation:
-  retro68:
-    enabled: true
-    profile: cw8-compat
-build:
-  project_file: MacSurf.mcp
-knowledge:
-  project_paths:
-    - docs/knowledge
+  family: codewarrior
+  version: "8.3"
+  authoritative: true
+project_file: MacSurf.mcp
+knowledge_paths:
+  - docs/knowledge
 ```
 
 The project manifest contains no passwords, SSH keys, FTP credentials, or private host addresses.
 
+Retro68/provider configuration is intentionally not embedded in the v1 project schema yet. Those policies are deployment/provider concerns until their portable semantics are stable enough to version into a future manifest revision.
+
 ## Machine manifest
 
-Machine configuration is owner-local/private. A public-safe machine description may expose capabilities and fingerprints without credentials.
+`MachineManifest` is a public/non-secret machine description. Private connection details live separately in provider-local configuration.
 
 Example:
 
 ```yaml
 schema_version: 1
-machine:
-  id: g3-imac
-  platform: classic-mac-development-host
-  target_os: "9.2.2"
-  architecture: powerpc-g3
-  toolchains:
-    - family: codewarrior
-      version: "8.3"
-      authoritative_for:
-        - macsurf
-  capabilities:
-    - codewarrior.read
-    - codewarrior.build
-    - machine.deploy
-    - machine.launch
-provider:
-  id: g3-imac-workflow
-  kind: codewarrior-automation
+machine_id: g3-imac
+name: G3 iMac
+architecture: powerpc-g3
+os_family: classic-mac-os
+os_version: "9.2.2"
+provider: codewarrior-ssh-applescript
+capabilities:
+  - codewarrior.read
+  - codewarrior.build
+  - machine.deploy
+  - machine.launch
+labels:
+  role: reference-hardware
 ```
 
-Private provider configuration may separately reference environment variables or a secret store for connection details.
+Private provider configuration may separately reference environment variables or a secret store for SSH host/user/key, FTP credentials, local paths, or other machine-specific secrets.
 
 ## Toolchain fingerprint
 
@@ -84,7 +75,7 @@ A human version label is not enough. Where possible, preserve:
 - CarbonLib/import-library version;
 - Plugin API version reported by the IDE where available.
 
-Compatibility records should reference the narrowest fingerprint actually demonstrated.
+The v1 manifest stores the portable family/version declaration. Richer observed fingerprints belong in provider/evidence records until their schema is stabilized.
 
 ## Applicability
 
@@ -95,14 +86,14 @@ Important dimensions include:
 - language and standard;
 - compiler/toolchain family and exact version;
 - architecture;
-- Classic Mac OS / Carbon target range;
-- SDK/header/library versions;
-- project-specific constraints.
+- Classic Mac OS target family/range;
+- project-specific constraints;
+- SDK/header/library versions when represented by the knowledge record/evidence layer.
 
-Unknown applicability is not treated as compatible.
+Unknown applicability is not treated as proof of compatibility.
 
 ## Versioning
 
-Manifest schema changes are explicit. Parsers reject unsupported schema versions and unknown keys by default unless a forward-compatible extension mechanism is deliberately introduced.
+Manifest schema changes are explicit. Pydantic models reject unknown keys by default. New nested structures or provider/validation policy fields belong in a future schema version unless they can be added without changing v1 semantics.
 
-This is important because silently accepting a new field with old semantics can change compiler, deployment, or security behavior.
+This prevents documentation examples from silently defining fields the parser does not understand and prevents old agents from misinterpreting newer project policy.
