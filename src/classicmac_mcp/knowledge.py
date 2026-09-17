@@ -41,16 +41,30 @@ def _load_yaml(path: Path) -> dict:
     return value
 
 
+def _grouped_items(path: Path, key: str) -> list[dict]:
+    doc = _load_yaml(path)
+    if doc.get("schema_version") != 1:
+        raise ValueError(f"unsupported or missing schema_version in {path}; expected 1")
+    unexpected = set(doc) - {"schema_version", key}
+    if unexpected:
+        raise ValueError(
+            f"unexpected top-level keys in {path}: {', '.join(sorted(unexpected))}"
+        )
+    items = doc.get(key, [])
+    if not isinstance(items, list):
+        raise ValueError(f"{key} must be a list: {path}")
+    for item in items:
+        if not isinstance(item, dict):
+            raise ValueError(f"every {key} item must be a mapping: {path}")
+    return items
+
+
 def iter_records(root: Path) -> Iterable[LoadedKnowledge]:
     knowledge_root = root / "knowledge"
     if not knowledge_root.exists():
         return
     for path in sorted(knowledge_root.rglob("*.yaml")):
-        doc = _load_yaml(path)
-        records = doc.get("records", [])
-        if not isinstance(records, list):
-            raise ValueError(f"records must be a list: {path}")
-        for metadata in records:
+        for metadata in _grouped_items(path, "records"):
             yield LoadedKnowledge(
                 record=KnowledgeRecord.model_validate(metadata),
                 path=path,
@@ -62,11 +76,7 @@ def iter_sources(root: Path) -> Iterable[LoadedSource]:
     if not source_root.exists():
         return
     for path in sorted(source_root.rglob("*.yaml")):
-        doc = _load_yaml(path)
-        sources = doc.get("sources", [])
-        if not isinstance(sources, list):
-            raise ValueError(f"sources must be a list: {path}")
-        for metadata in sources:
+        for metadata in _grouped_items(path, "sources"):
             yield LoadedSource(
                 record=SourceRecord.model_validate(metadata),
                 path=path,
