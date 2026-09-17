@@ -2,43 +2,54 @@
 
 ## Purpose
 
-The project manifest is the portable policy document that tells ClassicMacMCP what the target actually is. It must be sufficient to constrain retrieval and validation without embedding private machine details.
+The project manifest is the portable policy document that tells ClassicMacMCP what target constraints govern retrieval and validation. It is deliberately smaller than the full CodeWarrior/project-engine model.
 
-## Required top-level concepts
+The current v1 parser is defined by `ProjectManifest` in `src/classicmac_mcp/models.py` and is documented in `MANIFESTS.md`.
 
-A v1 project manifest should express:
+## Current v1
 
-- project identity;
-- source root/VCS;
-- one or more targets;
-- target OS/architecture/API/runtime;
-- language policy;
-- runtime-library policy;
-- authoritative toolchain;
-- optional validation/alternate backends;
-- native project/interchange files;
+V1 expresses only stable portable policy:
+
+- project ID and name;
+- source root;
+- one target architecture and OS range;
+- language and language standard;
+- authoritative toolchain family/version;
+- native project-file path when relevant;
 - project-local knowledge paths.
 
-## Authority rule
+V1 does **not** yet embed Retro68/provider policy, runtime-library selection, multiple targets, access paths, link order, resources, per-file settings, or alternate backends.
 
-Each target may declare at most one authoritative build backend. Other backends must have an explicit non-authoritative role such as `preflight` or `alternate`.
+That omission is intentional. We should examine real CodeWarrior XML exports and preserve their semantics before freezing a richer portable manifest schema.
 
-## CodeWarrior target semantics
+## Rich project-engine model
 
-The schema must be extensible to imported CodeWarrior XML semantics, including:
+The internal/import project model is broader than manifest v1 and is expected eventually to represent:
 
+- multiple targets;
+- target CPU/OS/API/runtime and executable format;
 - file/resource/library membership;
-- groups;
-- link order;
-- access paths and recursive search;
+- groups and link order;
+- access paths and recursive-search behavior;
 - prefix/precompiled headers;
 - defines;
 - target and per-file compiler/linker preferences;
-- output metadata;
-- resource/Finder metadata;
-- memory settings.
+- runtime-library policy;
+- output/resource/Finder metadata;
+- memory settings;
+- authoritative, preflight, and alternate backends.
 
-Unsupported imported settings must be retained or reported, never silently discarded.
+See `PROJECT_MODEL.md` and `CODEWARRIOR_PROJECT_ENGINE.md`.
+
+The richer model must not silently redefine v1 manifest semantics. When it becomes sufficiently evidenced and stable, it should become an explicit later manifest schema revision.
+
+## CodeWarrior XML rule
+
+CodeWarrior XML is the preferred first source for discovering the real project semantics. Unsupported imported settings must be retained explicitly or reported, never silently discarded.
+
+## Authority
+
+For v1, the declared `toolchain.authoritative` CodeWarrior/toolchain declaration controls target authority. Retro68 remains separate validation/provider policy until a later schema versions that relationship explicitly.
 
 ## Secrets
 
