@@ -5,6 +5,8 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+from .fts import literal_fts_query
+
 
 def search_references(
     database: Path,
@@ -24,7 +26,8 @@ def search_references(
         raise ValueError("limit must be between 1 and 100")
     if not database.exists():
         raise ValueError(f"knowledge database does not exist: {database}")
-    if not query.strip():
+    match_query = literal_fts_query(query)
+    if not match_query:
         return []
 
     db = sqlite3.connect(f"file:{database}?mode=ro", uri=True)
@@ -37,7 +40,7 @@ def search_references(
             return []
 
         clauses = ["reference_fts MATCH ?"]
-        params: list[object] = [query]
+        params: list[object] = [match_query]
         if corpus:
             clauses.append("corpus = ?")
             params.append(corpus)
