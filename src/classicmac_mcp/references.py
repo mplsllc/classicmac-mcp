@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 
@@ -14,6 +15,7 @@ def search_references(
     *,
     corpus: str = "",
     source_layer: str = "",
+    source_id: str = "",
     limit: int = 20,
 ) -> list[dict[str, object]]:
     """Search follow-up historical/vendor references.
@@ -47,12 +49,18 @@ def search_references(
         if source_layer:
             clauses.append("source_layer = ?")
             params.append(source_layer)
+        if source_id:
+            clauses.append("source_id = ?")
+            params.append(source_id)
         params.append(limit)
 
         rows = db.execute(
-            f"""SELECT corpus, source_layer, path, title,
-                       snippet(reference_fts, 4, '[', ']', ' … ', 40) AS excerpt,
-                       bm25(reference_fts, 0.0, 0.0, 1.0, 4.0, 1.0) AS rank
+            f"""SELECT corpus, source_layer, source_id, vendor, revision, retrieval,
+                       applicability_json, restrictions_json, path, title,
+                       snippet(reference_fts, 10, '[', ']', ' … ', 40) AS excerpt,
+                       bm25(reference_fts,
+                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                            1.0, 4.0, 1.0) AS rank
                 FROM reference_fts
                 WHERE {' AND '.join(clauses)}
                 ORDER BY rank LIMIT ?""",
@@ -61,11 +69,17 @@ def search_references(
 
         return [
             {
-                "evidence_class": "historical_reference",
+                "evidence_class": row["source_layer"] or "historical_reference",
                 "canonical_knowledge": False,
                 "follow_up_only": True,
                 "corpus": row["corpus"],
                 "source_layer": row["source_layer"],
+                "source_id": row["source_id"],
+                "vendor": row["vendor"],
+                "revision": row["revision"],
+                "retrieval": row["retrieval"],
+                "applicability": json.loads(row["applicability_json"] or "{}"),
+                "restrictions": json.loads(row["restrictions_json"] or "{}"),
                 "path": row["path"],
                 "title": row["title"],
                 "excerpt": row["excerpt"],
