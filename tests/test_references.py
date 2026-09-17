@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from pathlib import Path
 
@@ -12,6 +13,12 @@ def _database(path: Path) -> None:
             CREATE TABLE reference_documents (
                 corpus TEXT NOT NULL,
                 source_layer TEXT NOT NULL,
+                source_id TEXT,
+                vendor TEXT,
+                revision TEXT,
+                retrieval TEXT,
+                applicability_json TEXT NOT NULL,
+                restrictions_json TEXT NOT NULL,
                 path TEXT NOT NULL,
                 title TEXT NOT NULL,
                 content TEXT NOT NULL,
@@ -20,6 +27,12 @@ def _database(path: Path) -> None:
             CREATE VIRTUAL TABLE reference_fts USING fts5(
                 corpus UNINDEXED,
                 source_layer UNINDEXED,
+                source_id UNINDEXED,
+                vendor UNINDEXED,
+                revision UNINDEXED,
+                retrieval UNINDEXED,
+                applicability_json UNINDEXED,
+                restrictions_json UNINDEXED,
                 path,
                 title,
                 content,
@@ -28,16 +41,26 @@ def _database(path: Path) -> None:
             """
         )
         values = (
-            "metrowerks-private",
-            "vendor_documentation",
+            "metrowerks-ide-sdk-api-reference-5-1:part-1",
+            "primary_vendor_documentation",
+            "metrowerks-ide-sdk-api-reference-5-1",
+            "Metrowerks/Freescale",
+            "2003-08-25",
+            "followup",
+            json.dumps({"documented_product": "IDE 5.1 SDK", "codewarrior_8_3": "unverified"}),
+            json.dumps({}),
             "SDKAPIRM.txt",
             "IDE SDK API Reference",
             "CWGetProjectFileCount returns the number of files in the active target.",
         )
         db.execute(
-            "INSERT INTO reference_documents VALUES (?, ?, ?, ?, ?)", values
+            "INSERT INTO reference_documents VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            values,
         )
-        db.execute("INSERT INTO reference_fts VALUES (?, ?, ?, ?, ?)", values)
+        db.execute(
+            "INSERT INTO reference_fts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            values,
+        )
         db.commit()
     finally:
         db.close()
@@ -52,15 +75,25 @@ def test_search_references_is_explicitly_noncanonical(tmp_path: Path):
     result = results[0]
     assert result["canonical_knowledge"] is False
     assert result["follow_up_only"] is True
-    assert result["source_layer"] == "vendor_documentation"
-    assert result["corpus"] == "metrowerks-private"
+    assert result["source_layer"] == "primary_vendor_documentation"
+    assert result["source_id"] == "metrowerks-ide-sdk-api-reference-5-1"
+    assert result["vendor"] == "Metrowerks/Freescale"
+    assert result["revision"] == "2003-08-25"
+    assert result["applicability"]["codewarrior_8_3"] == "unverified"
     assert "does not by itself establish" in result["warning"]
 
 
-def test_search_references_allows_corpus_filter(tmp_path: Path):
+def test_search_references_allows_source_filter(tmp_path: Path):
     database = tmp_path / "kb.sqlite"
     _database(database)
-    assert search_references(database, "active", corpus="other") == []
+    assert search_references(database, "active", source_id="other") == []
+    assert len(
+        search_references(
+            database,
+            "active",
+            source_id="metrowerks-ide-sdk-api-reference-5-1",
+        )
+    ) == 1
 
 
 def test_search_references_returns_empty_when_optional_table_absent(tmp_path: Path):
